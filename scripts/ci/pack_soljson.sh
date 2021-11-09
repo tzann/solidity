@@ -1,0 +1,21 @@
+#!/bin/sh
+
+SCRIPT_DIR="$(realpath $(dirname $0))"
+SOLJSON_JS="$1"
+SOLJSON_WASM="$2"
+OUTPUT="$3"
+
+echo -n "\"use strict\";" > "${OUTPUT}"
+echo -n "var backup = { module: module, exports: exports, Browser: Browser, backup: backup, brotli: brotli };" >> "${OUTPUT}"
+echo -n "var module_bak = module; var exports_bak = exports;var Browser_bak = Browser;" >> "${OUTPUT}"
+echo -n "var Browser = {T:function(){}};var exports = {};var module = { exports: exports };" >> "${OUTPUT}"
+cat "${SCRIPT_DIR}/brotlidec.js" >> "${OUTPUT}"
+echo -n "var brotli = module.exports;" >> "${OUTPUT}"
+echo -n "var module = backup[\"module\"]; var exports = backup[\"exports\"]; Browser = backup[\"Browser\"];" >> "${OUTPUT}"
+echo -n "var wasmBase64 = \"" >> "${OUTPUT}"
+brotli -c "${SOLJSON_WASM}" | base64 -w 0 >> "${OUTPUT}"
+echo -n "\";" >> "${OUTPUT}"
+cat "${SCRIPT_DIR}/wasm_unpack.js" >> "${OUTPUT}"
+echo -n "var Module = Module || {}; Module[\"wasmBinary\"] = unpackWasm(wasmBase64);" >> "${OUTPUT}"
+echo -n "var brotli = backup[\"brotli\"]; var backup = backup[\"backup\"];" >> "${OUTPUT}"
+sed -e 's/"use strict";//' "${SOLJSON_JS}" >> "${OUTPUT}"
