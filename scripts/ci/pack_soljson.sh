@@ -7,7 +7,6 @@ OUTPUT="$3"
 
 echo -n "\"use strict\";" > "${OUTPUT}"
 echo -n "var backup = { module: module, exports: exports, Browser: Browser, backup: backup, brotli: brotli };" >> "${OUTPUT}"
-echo -n "var module_bak = module; var exports_bak = exports;var Browser_bak = Browser;" >> "${OUTPUT}"
 echo -n "var Browser = {T:function(){}};var exports = {};var module = { exports: exports };" >> "${OUTPUT}"
 cat "${SCRIPT_DIR}/brotlidec.js" >> "${OUTPUT}"
 echo -n "var brotli = module.exports;" >> "${OUTPUT}"
