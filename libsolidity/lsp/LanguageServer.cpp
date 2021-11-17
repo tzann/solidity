@@ -196,10 +196,10 @@ LanguageServer::LanguageServer(std::function<void(std::string_view)> _logger, un
 	m_handlers{
 		{"$/cancelRequest", [](auto, auto) {/*nothing for now as we are synchronous */} },
 		{"cancelRequest", [](auto, auto) {/*nothing for now as we are synchronous */} },
+		{"exit", [this](auto, auto) { terminate(); }},
 		{"initialize", bind(&LanguageServer::handleInitialize, this, _1, _2)},
 		{"initialized", [](auto, auto) {} },
 		{"shutdown", [this](auto, auto) { m_shutdownRequested = true; }},
-		{"exit", [this](auto, auto) { terminate(); }},
 		{"textDocument/definition", [this](auto _id, auto _args) { handleGotoDefinition(_id, _args); }},
 		{"textDocument/didChange", bind(&LanguageServer::handleTextDocumentDidChange, this, _1, _2)},
 		{"textDocument/didClose", [](auto, auto) {/*nothing for now*/}},
