@@ -54,6 +54,30 @@ namespace solidity::lsp
 namespace
 {
 
+struct MarkdownBuilder
+{
+	std::stringstream result;
+
+	MarkdownBuilder& code(std::string const& _code)
+	{
+		// TODO: Use solidity as langauge Id as soon as possible.
+		auto constexpr SolidityLanguageId = "javascript";
+		result << "```" << SolidityLanguageId << '\n' << _code << "\n```\n\n";
+		return *this;
+	}
+
+	MarkdownBuilder& text(std::string const& _text)
+	{
+		if (_text.empty())
+		{
+			result << _text << '\n';
+			if (_text.back() != '\n') // We want double-LF to ensure constructing a paragraph.
+				result << '\n';
+		}
+		return *this;
+	}
+};
+
 Json::Value toJson(LineColumn _pos)
 {
 	Json::Value json = Json::objectValue;
@@ -175,7 +199,7 @@ LanguageServer::LanguageServer(std::function<void(std::string_view)> _logger, un
 		{"initialize", bind(&LanguageServer::handleInitialize, this, _1, _2)},
 		{"initialized", [](auto, auto) {} },
 		{"shutdown", [this](auto, auto) { m_shutdownRequested = true; }},
-		{"exit", bind(&LanguageServer::handleExit, this, _1, _2)},
+		{"exit", [this](auto, auto) { terminate(); }},
 		{"textDocument/definition", [this](auto _id, auto _args) { handleGotoDefinition(_id, _args); }},
 		{"textDocument/didChange", bind(&LanguageServer::handleTextDocumentDidChange, this, _1, _2)},
 		{"textDocument/didClose", [](auto, auto) {/*nothing for now*/}},
@@ -519,14 +543,6 @@ void LanguageServer::handleWorkspaceDidChangeConfiguration(MessageID, Json::Valu
 		changeConfiguration(_args["settings"]);
 }
 
-void LanguageServer::handleExit(MessageID _id, Json::Value const& /*_args*/)
-{
-	terminate();
-	Json::Value replyArgs = Json::intValue;
-	replyArgs = m_shutdownRequested ? 0 : 1;
-	m_client->reply(_id, replyArgs);
-}
-
 void LanguageServer::handleTextDocumentDidOpen(MessageID /*_id*/, Json::Value const& _args)
 {
 	if (!_args["textDocument"])
@@ -628,36 +644,48 @@ void LanguageServer::handleGotoDefinition(MessageID _id, Json::Value const& _arg
 
 string LanguageServer::symbolHoverInformation(ASTNode const* _sourceNode)
 {
-	if (auto const* documented = dynamic_cast<StructurallyDocumented const*>(_sourceNode))
+	MarkdownBuilder markdown{};
+
+	if (auto const* expression = dynamic_cast<Expression const*>(_sourceNode))
+		if (auto const* declaration = ASTNode::referencedDeclaration(*expression))
+			if (declaration->type())
+				markdown.code(declaration->type()->toString(false));
+
+	// Try getting the type definition of the underlying AST node, if available.
+	if (auto const* declaration = dynamic_cast<Declaration const*>(_sourceNode))
 	{
-		if (documented->documentation())
-			return *documented->documentation()->text();
-	}
-	else if (auto const* identifier = dynamic_cast<Identifier const*>(_sourceNode))
-	{
-		if (Type const* type = identifier->annotation().type)
-		{
-			stringstream md;
-			md << "## " << type->toString(false) << "\n";
-			md << "\n";
-			md << "TODO(pr): add natspec documentation here.\n";
-			// TODO(pr): find declaring AST node to extract NatSpec documentation
-			return md.str();
-		}
+		if (declaration->type())
+			markdown.code(declaration->type()->toString(false));
 	}
 	else if (auto const* identifierPath = dynamic_cast<IdentifierPath const*>(_sourceNode))
 	{
 		Declaration const* decl = identifierPath->annotation().referencedDeclaration;
 		if (decl && decl->type())
-			return decl->type()->toString(false);
+			markdown.code(decl->type()->toString(false));
+		if (auto const* node = dynamic_cast<StructurallyDocumented const*>(decl))
+			if (node->documentation()->text())
+				markdown.text(*node->documentation()->text());
 	}
-	else if (auto const* memberAccess = dynamic_cast<MemberAccess const*>(_sourceNode))
+	else if (auto const* expression = dynamic_cast<Expression const*>(_sourceNode))
 	{
-		if (memberAccess->annotation().type)
-			return memberAccess->annotation().type->toString(false);
+		if (auto const* declaration = ASTNode::referencedDeclaration(*expression))
+			if (declaration->type())
+				markdown.code(declaration->type()->toString(false));
+	}
+	else
+	{
+		markdown.text(fmt::format("Unhandled AST node type in hover: {}\n", typeid(*_sourceNode).name()));
+		log(fmt::format("Unhandled AST node type in hover: {}\n", typeid(*_sourceNode).name()));
 	}
 
-	return {};
+	// If this AST node contains documentation itself, append it.
+	if (auto const* documented = dynamic_cast<StructurallyDocumented const*>(_sourceNode))
+	{
+		if (documented->documentation())
+			markdown.text(*documented->documentation()->text());
+	}
+
+	return markdown.result.str();
 }
 
 void LanguageServer::handleTextDocumentHover(MessageID _id, Json::Value const& _args)
@@ -704,7 +732,8 @@ void LanguageServer::handleTextDocumentReferences(MessageID _id, Json::Value con
 		m_client->reply(_id, emptyResponse); // reply with "No references".
 		return;
 	}
-	SourceUnit const& sourceUnit = m_compilerStack->ast(dpos.path);
+	string sourceUnitName = pathToSourceUnitName(dpos.path);
+	SourceUnit const& sourceUnit = m_compilerStack->ast(sourceUnitName);
 
 	auto output = vector<SourceLocation>{};
 	if (auto const* identifier = dynamic_cast<Identifier const*>(sourceNode))

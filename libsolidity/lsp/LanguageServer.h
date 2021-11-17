@@ -84,7 +84,6 @@ public:
 
 protected:
 	void handleInitialize(MessageID _id, Json::Value const& _args);
-	void handleExit(MessageID _id, Json::Value const& _args);
 	void handleWorkspaceDidChangeConfiguration(MessageID _id, Json::Value const& _args);
 	void handleTextDocumentDidOpen(MessageID _id, Json::Value const& _args);
 	void handleTextDocumentDidChange(MessageID _id, Json::Value const& _args);
