@@ -9,9 +9,8 @@ import os
 import subprocess
 import threading
 
-from typing import List
-from deepdiff import DeepDiff
 from pprint import pprint
+from deepdiff import DeepDiff
 
 # Requires the one from https://github.com/christianparpart/pylspclient
 # Use `pip install -e $PATH_TO_LIB_CHECKOUT --user` for local development & testing
@@ -32,7 +31,7 @@ def dprint(text: str):
 
 def dinspect(text, obj):
     dprint(text)
-    if not(obj is None):
+    if not obj is None:
         pprint(obj)
 
 class ReadPipe(threading.Thread):
@@ -52,7 +51,7 @@ class ReadPipe(threading.Thread):
                 #print("\033[1;42m{}\033[m\n".format(line))
                 line = self.pipe.readline().decode('utf-8')
         except Exception as e:
-            dprint("ReadPipe: Unhandled exception: {}".format(e))
+            dprint(f'ReadPipe: Unhandled exception: {e}')
         finally:
             dprint("ReadPipe: terminating")
 
@@ -103,7 +102,9 @@ LSP_CLIENT_CAPS = {
         'executeCommand': {'dynamicRegistration': True},
         'symbol': {
             'dynamicRegistration': True,
-            'symbolKind': {'valueSet': [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26 ]}
+            'symbolKind': {'valueSet': [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12,
+                                        13, 14, 15, 16, 17, 18, 19, 20, 21, 22,
+                                        23, 24, 25, 26 ]}
         },
         'workspaceEdit': {'documentChanges': True},
         'workspaceFolders': True}
@@ -125,7 +126,7 @@ class SolcInstance:
         self.client = pylspclient.LspClient(None)
 
     def __enter__(self):
-        dprint("Starting solc LSP instance: {}".format(self.solc_path))
+        dprint(f"Starting solc LSP instance: {self.solc_path}")
         self.process = subprocess.Popen(
             [self.solc_path, "--lsp"],
             stdin=subprocess.PIPE,
@@ -163,11 +164,11 @@ class SolcTests:
         self.project_root_dir = _project_root_dir
         self.project_root_uri = 'file://' + self.project_root_dir
         self.tests = 0
-        dprint("root dir: {}".format(self.project_root_dir))
+        dprint("root dir: {self.project_root_dir}")
 
     # {{{ helpers
     def get_test_file_path(self, _test_case_name):
-        return "{}/{}.sol".format(self.project_root_dir, _test_case_name)
+        return f"{self.project_root_dir}/{_test_case_name}.sol"
 
     def get_test_file_uri(self, _test_case_name):
         return "file://" + self.get_test_file_path(_test_case_name)
@@ -185,16 +186,16 @@ class SolcTests:
 
     def expect(self, _cond: bool, _description: str) -> None:
         self.tests = self.tests + 1
-        prefix = "[{}] ".format(self.tests)
+        prefix = f"[{self.tests}]{SGR_TEST_BEGIN}{_description}{SGR_RESET} : "
         if _cond:
-            print(prefix + SGR_TEST_BEGIN + _description + SGR_RESET + ': ' + SGR_STATUS_OKAY + 'OK' + SGR_RESET)
+            print(prefix + SGR_STATUS_OKAY + 'OK' + SGR_RESET)
         else:
-            print(prefix + SGR_TEST_BEGIN + _description + SGR_RESET + ': ' + SGR_STATUS_FAIL + 'FAILED' + SGR_RESET)
+            print(prefix + SGR_STATUS_FAIL + 'FAILED' + SGR_RESET)
             os._exit(1)
 
     def expect_equal(self, _description: str, _actual, _expected) -> None:
         self.tests = self.tests + 1
-        prefix = "[{}] ".format(self.tests) + SGR_TEST_BEGIN + _description + ': '
+        prefix = f"[{self.tests}] {SGR_TEST_BEGIN}{_description}: "
         diff = DeepDiff(_actual, _expected)
         if len(diff) == 0:
             print(prefix + SGR_STATUS_OKAY + 'OK' + SGR_RESET)
@@ -230,11 +231,12 @@ class SolcTests:
         os.system('sleep .5') # TODO: wait_until_notification('published_diagnostics')
 
         # should have received one published_diagnostics notification
-        dprint("len: {}".format(len(self.solc.published_diagnostics)))
+        dprint("len: {len(self.solc.published_diagnostics)}")
         self.expect(len(self.solc.published_diagnostics) == 1, "one published_diagnostics message")
         published_diagnostics = self.solc.published_diagnostics[0]
 
-        self.expect(published_diagnostics['uri'] == self.get_test_file_uri(TEST_NAME), 'diagnostic: uri')
+        self.expect(published_diagnostics['uri'] == self.get_test_file_uri(TEST_NAME),
+            'diagnostic: uri')
 
         # containing one single diagnotics report
         diagnostics = published_diagnostics['diagnostics']
@@ -242,7 +244,11 @@ class SolcTests:
         dinspect('diagnostic', diagnostics)
         diagnostic = diagnostics[0]
         self.expect(diagnostic['code'] == 3805, 'diagnostic: pre-release compiler')
-        self.expect_equal('check range', diagnostic['range'], {'end': {'character': 0, 'line': 0}, 'start': {'character': 0, 'line': 0}})
+        self.expect_equal(
+            'check range',
+            diagnostic['range'],
+            {'end': {'character': 0, 'line': 0}, 'start': {'character': 0, 'line': 0}}
+        )
 
     def test_definition(self):
         """
@@ -319,7 +325,9 @@ class SolidityLSPTestSuite:
             project_root_uri = 'file://' + self.project_root_dir
             workspace_folders = [ {'name': 'solidity-lsp', 'uri': project_root_uri} ]
             traceServer = 'off'
-            solc.client.initialize(solc.process.pid, None, project_root_uri, None, LSP_CLIENT_CAPS, traceServer, workspace_folders)
+            solc.client.initialize(solc.process.pid, None, project_root_uri,
+                                   None, LSP_CLIENT_CAPS, traceServer,
+                                   workspace_folders)
             solc.client.initialized()
             # Maybe we want to check the init response? Expect certain features to be announced?
 
@@ -338,7 +346,7 @@ class SolidityLSPTestSuite:
         parser.add_argument(
             'project_root_dir',
             type=str,
-            default="{}/../../..".format(os.path.dirname(os.path.realpath(__file__))),
+            default=f"{os.path.dirname(os.path.realpath(__file__))}/../../..",
             help='Path to Solidity project\'s root directory (must be fully qualified).',
             nargs="?"
         )

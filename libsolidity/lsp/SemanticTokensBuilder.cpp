@@ -266,8 +266,8 @@ void SemanticTokensBuilder::endVisit(PragmaDirective const& _pragma)
 
 bool SemanticTokensBuilder::visit(frontend::UserDefinedTypeName const& _node)
 {
-	if (auto const ot = semanticTokenTypeForType(_node.annotation().type); ot.has_value())
-		encode(_node.location(), *ot);
+	if (auto const token = semanticTokenTypeForType(_node.annotation().type); token.has_value())
+		encode(_node.location(), *token);
 	return false;
 }
 
@@ -275,8 +275,8 @@ bool SemanticTokensBuilder::visit(frontend::VariableDeclaration const& _node)
 {
 	DPRINT(fmt::format("VariableDeclaration: {}", _node.name()));
 
-	if (auto const ot = semanticTokenTypeForType(_node.typeName().annotation().type); ot.has_value())
-		encode(_node.typeName().location(), *ot);
+	if (auto const token = semanticTokenTypeForType(_node.typeName().annotation().type); token.has_value())
+		encode(_node.typeName().location(), *token);
 
 	encode(_node.nameLocation(), SemanticTokenType::Variable);
 	if (_node.overrides())

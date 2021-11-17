@@ -4,7 +4,7 @@ pragma solidity >=0.8.0;
 /// Some Error type E.
 error E(uint, uint);
 
-enum Wheather {
+enum Weather {
     Sunny,
     Cloudy,
     Rainy
@@ -14,7 +14,7 @@ enum Wheather {
 ///
 contract MyContract
 {
-    Wheather lastWheather = Wheather.Rainy;
+    Weather lastWeather = Weather.Rainy;
     uint constant fixedValue = 1234;
 
     constructor()
@@ -27,11 +27,11 @@ contract MyContract
     /// @param b me it is also
     function sum(uint a, uint b) public pure returns (uint result)
     {
-        Wheather weather = Wheather.Sunny;
+        Weather weather = Weather.Sunny;
         uint foo = 12345 + fixedValue;
         if (a == b)
             revert E(a, b);
-        weather = Wheather.Cloudy;
+        weather = Weather.Cloudy;
         result = a + b + foo;
     }
 
