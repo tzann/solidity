@@ -245,6 +245,7 @@ bool CommandLineOptions::operator==(CommandLineOptions const& _other) const noex
 		optimizer.expectedExecutionsPerDeployment == _other.optimizer.expectedExecutionsPerDeployment &&
 		optimizer.noOptimizeYul == _other.optimizer.noOptimizeYul &&
 		optimizer.yulSteps == _other.optimizer.yulSteps &&
+		lsp.trace == _other.lsp.trace &&
 #if defined(SOLC_LSP_TCP)
 		lsp.port == _other.lsp.port &&
 #endif
