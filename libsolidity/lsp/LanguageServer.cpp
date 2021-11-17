@@ -44,6 +44,10 @@ using namespace std::placeholders;
 using namespace solidity::langutil;
 using namespace solidity::frontend;
 
+#if !defined(NDEBUG)
+#define LOG(x) do { std::cerr << "LOG: " << (x) << std::endl; } while (0)
+#endif
+
 namespace solidity::lsp
 {
 
@@ -163,7 +167,7 @@ Json::Value semanticTokensLegend()
 
 }
 
-LanguageServer::LanguageServer(Logger _logger, unique_ptr<Transport> _transport):
+LanguageServer::LanguageServer(std::function<void(std::string_view)> _logger, unique_ptr<Transport> _transport):
 	m_client{move(_transport)},
 	m_handlers{
 		{"$/cancelRequest", [](auto, auto) {/*nothing for now as we are synchronous */} },
@@ -750,13 +754,13 @@ void LanguageServer::semanticTokensFull(MessageID _id, Json::Value const& _args)
 
 void LanguageServer::log(string _message)
 {
-	//if (m_trace >= Trace::Messages && m_logger)
+	if (m_trace >= Trace::Messages && m_logger)
 		m_logger(_message);
 }
 
 void LanguageServer::trace(string const& _message)
 {
-	//if (m_trace >= Trace::Verbose && m_logger)
+	if (m_trace >= Trace::Verbose && m_logger)
 		m_logger(_message);
 }
 

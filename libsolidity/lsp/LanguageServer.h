@@ -60,11 +60,9 @@ enum class ErrorCode;
 class LanguageServer
 {
 public:
-	using Logger = std::function<void(std::string_view)>;
-
 	/// @param _logger special logger used for debugging the LSP.
 	/// @param _transport Customizable transport layer.
-	LanguageServer(Logger _logger, std::unique_ptr<Transport> _transport);
+	LanguageServer(std::function<void(std::string_view)> _logger, std::unique_ptr<Transport> _transport);
 
 	/// Compiles the source behind path @p _file and updates the diagnostics pushed to the client.
 	///
@@ -82,7 +80,7 @@ public:
 	/// Initiates the main event loop to terminate as soon as possible.
 	void terminate();
 
-	Transport& transport() { return *m_client; }
+	Transport& transport() noexcept { return *m_client; }
 
 protected:
 	void handleInitialize(MessageID _id, Json::Value const& _args);
@@ -118,12 +116,6 @@ protected:
 
 	/// Logs a message (should be used for logging messages that are informationally useful to the client).
 	void log(std::string _message);
-
-	template <typename... Args>
-	void log(std::string_view _msg, Args... _args)
-	{
-		log(fmt::format(_msg, std::forward<Args>(_args)...));
-	}
 
 	/// Logs a verbose trace message (should used for logging messages that are helpful to the client).
 	void trace(std::string const& _message);
