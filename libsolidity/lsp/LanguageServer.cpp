@@ -646,13 +646,16 @@ string LanguageServer::symbolHoverInformation(ASTNode const* _sourceNode)
 {
 	MarkdownBuilder markdown{};
 
+	// Try getting the type definition of the underlying AST node, if available.
 	if (auto const* expression = dynamic_cast<Expression const*>(_sourceNode))
+	{
+		if (expression->annotation().type)
+			markdown.code(expression->annotation().type->toString(false));
 		if (auto const* declaration = ASTNode::referencedDeclaration(*expression))
 			if (declaration->type())
 				markdown.code(declaration->type()->toString(false));
-
-	// Try getting the type definition of the underlying AST node, if available.
-	if (auto const* declaration = dynamic_cast<Declaration const*>(_sourceNode))
+	}
+	else if (auto const* declaration = dynamic_cast<Declaration const*>(_sourceNode))
 	{
 		if (declaration->type())
 			markdown.code(declaration->type()->toString(false));
