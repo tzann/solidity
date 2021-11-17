@@ -199,6 +199,11 @@ defaults:
         - attach_workspace:
             at: build
         - run:
+            name: Install dependencies
+            command: |
+              pip install --user git+https://github.com/christianparpart/pylspclient.git
+              pip install --user deepdiff pytest
+        - run:
             name: LSP_test
             command: ./test/libsolidity/lsp/solc-lsp-test.py
         - store_test_results: *store_test_results
@@ -465,7 +470,9 @@ jobs:
           command: apt -q update && apt install -y python3-pip
       - run:
           name: Install pylint
-          command: python3 -m pip install pylint z3-solver pygments-lexer-solidity parsec tabulate
+          command: |
+            python3 -m pip install pylint z3-solver pygments-lexer-solidity parsec tabulate
+            pip install --user git+https://github.com/christianparpart/pylspclient.git deepdiff pytest
           # also z3-solver, parsec and tabulate to make sure pylint knows about this module, pygments-lexer-solidity for docs
       - run:
           name: Linting Python Scripts

@@ -63,6 +63,7 @@
 #include <range/v3/all.hpp>
 
 #include <algorithm>
+#include <fstream>
 #include <memory>
 
 #include <range/v3/view/map.hpp>
@@ -909,7 +910,7 @@ void CommandLineInterface::serveLSP()
 	if (!m_options.lsp.trace.empty())
 		traceLog = make_unique<ofstream>(m_options.lsp.trace.string(), std::ios::app);
 	else
-		traceLog = make_unique<ofstream>(boost::filesystem::temp_directory_path() / "solc.lsp.log", std::ios::app);
+		traceLog = make_unique<ofstream>((boost::filesystem::temp_directory_path() / "solc.lsp.log").generic_string(), std::ios::app);
 
 	auto const traceLevel = lsp::Trace::Verbose;
 

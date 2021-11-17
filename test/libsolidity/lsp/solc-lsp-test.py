@@ -141,7 +141,7 @@ class SolcInstance:
                 self.process.stdout
             ),
             notify_callbacks={
-                'textDocument/publishDiagnostics': lambda x: self.on_publish_diagnostics(x)
+                'textDocument/publishDiagnostics': self.on_publish_diagnostics
             }
         )
         self.client = pylspclient.LspClient(self.endpoint)
@@ -238,7 +238,7 @@ class SolcTests:
         self.expect(published_diagnostics['uri'] == self.get_test_file_uri(TEST_NAME),
             'diagnostic: uri')
 
-        # containing one single diagnotics report
+        # containing one single diagnostics report
         diagnostics = published_diagnostics['diagnostics']
         self.expect(len(diagnostics) == 1, "one diagnostics")
         dinspect('diagnostic', diagnostics)
