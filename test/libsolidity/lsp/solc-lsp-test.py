@@ -10,6 +10,7 @@ import subprocess
 import threading
 
 from pprint import pprint
+from threading import Condition
 from deepdiff import DeepDiff
 
 # Requires the one from https://github.com/christianparpart/pylspclient
@@ -43,17 +44,12 @@ class ReadPipe(threading.Thread):
         self.pipe = pipe
 
     def run(self):
-        try:
-            dprint("ReadPipe: starting")
+        dprint("ReadPipe: starting")
+        line = self.pipe.readline().decode('utf-8')
+        while line:
+            print(line)
+            #print("\033[1;42m{}\033[m\n".format(line))
             line = self.pipe.readline().decode('utf-8')
-            while line:
-                print(line)
-                #print("\033[1;42m{}\033[m\n".format(line))
-                line = self.pipe.readline().decode('utf-8')
-        except Exception as e:
-            dprint(f'ReadPipe: Unhandled exception: {e}')
-        finally:
-            dprint("ReadPipe: terminating")
 
 SOLIDITY_LANGUAGE_ID = "solidity" # lsp_types.LANGUAGE_IDENTIFIER.C
 
@@ -118,12 +114,15 @@ class SolcInstance:
     process: subprocess.Popen
     endpoint: pylspclient.LspEndpoint
     client: pylspclient.LspClient
+    read_pipe: ReadPipe
+    diagnostics_cond: Condition
     #published_diagnostics: object
 
     def __init__(self, _solc_path: str) -> None:
         self.solc_path = _solc_path
         self.published_diagnostics = []
         self.client = pylspclient.LspClient(None)
+        self.diagnostics_cond = Condition()
 
     def __enter__(self):
         dprint(f"Starting solc LSP instance: {self.solc_path}")
@@ -157,6 +156,9 @@ class SolcInstance:
         dprint("Receiving published diagnostics:")
         pprint(_diagnostics)
         self.published_diagnostics.append(_diagnostics)
+        self.diagnostics_cond.acquire()
+        self.diagnostics_cond.notify()
+        self.diagnostics_cond.release()
 
 class SolcTests:
     def __init__(self, _client: SolcInstance, _project_root_dir: str):
@@ -174,9 +176,10 @@ class SolcTests:
         return "file://" + self.get_test_file_path(_test_case_name)
 
     def get_test_file_contents(self, _test_case_name):
-        return open(self.get_test_file_path(_test_case_name), "r").read()
+        return open(self.get_test_file_path(_test_case_name,), mode="r", encoding="utf-8").read()
 
     def lsp_open_file(self, _test_case_name):
+        """ Opens file for given test case. """
         version = 1
         file_uri = self.get_test_file_uri(_test_case_name)
         file_contents = self.get_test_file_contents(_test_case_name)
@@ -184,14 +187,26 @@ class SolcTests:
             file_uri, SOLIDITY_LANGUAGE_ID, version, file_contents
         ))
 
+    def lsp_open_file_and_wait_for_diagnostics(self, _test_case_name):
+        """
+        Opens file for given test case and waits for diagnostics to be published.
+        """
+        self.solc.diagnostics_cond.acquire()
+        self.lsp_open_file(_test_case_name)
+        self.solc.diagnostics_cond.wait_for(
+            predicate=lambda: len(self.solc.published_diagnostics) != 0,
+            timeout=2.0
+        )
+        self.solc.diagnostics_cond.release()
+
     def expect(self, _cond: bool, _description: str) -> None:
         self.tests = self.tests + 1
-        prefix = f"[{self.tests}]{SGR_TEST_BEGIN}{_description}{SGR_RESET} : "
+        prefix = f"[{self.tests}] {SGR_TEST_BEGIN}{_description}{SGR_RESET} : "
         if _cond:
             print(prefix + SGR_STATUS_OKAY + 'OK' + SGR_RESET)
         else:
             print(prefix + SGR_STATUS_FAIL + 'FAILED' + SGR_RESET)
-            os._exit(1)
+            raise RuntimeError("Expectation failed.")
 
     def expect_equal(self, _description: str, _actual, _expected) -> None:
         self.tests = self.tests + 1
@@ -226,9 +241,7 @@ class SolcTests:
         return _uri[subLength:]
 
     def open_files_and_test_publish_diagnostics(self):
-        self.lsp_open_file(TEST_NAME)
-
-        os.system('sleep .5') # TODO: wait_until_notification('published_diagnostics')
+        self.lsp_open_file_and_wait_for_diagnostics(TEST_NAME)
 
         # should have received one published_diagnostics notification
         dprint("len: {len(self.solc.published_diagnostics)}")
@@ -266,7 +279,7 @@ class SolcTests:
         self.expect(result[0].range == lsp_types.Range(lsp_types.Position(19, 16),
                                                        lsp_types.Position(19, 23)), "range check")
 
-        # TODO: test on return parameter symbol: `result` at 35:9 (begin of identifier)
+        # Test on return parameter symbol: `result` at 35:9 (begin of identifier)
         result = self.solc.client.definition(
                 lsp_types.TextDocumentIdentifier(self.get_test_file_uri(TEST_NAME)),
                 lsp_types.Position(34, 9))
@@ -277,64 +290,47 @@ class SolcTests:
                 lsp_types.Position(34, 27))
         dinspect("local var", result)
 
-        # TODO: test on function parameter symbol
-        # TODO: test on enum type symbol in expression
-        # TODO: test on enum value symbol in expression
-        # TODO: test on import statement to jump to imported file
-
-        # HACK: WIP
-        #os.system("sleep 1") # quick workaround, just wait a bit
-        pass
+        # Test on function parameter symbol
+        # Test on enum type symbol in expression
+        # Test on enum value symbol in expression
+        # Test on import statement to jump to imported file
 
     def test_documentHighlight(self):
-        # TODO
         pass
 
     def test_references(self):
-        # TODO: i.g. find all references
+        # Shows all references of given symbol def
         pass
 
     def test_hover(self):
-        # TODO: e.g. this shows NatSpec doc and signature
-        pass
-
-    def test_semanticTokensFull(self):
-        # TODO: that's the semantic syntax highglihting feature
-        # It returns the descriptions for the entire file.
-        pass
-
-    def test_signatureHelp(self):
-        #self.solc.client.signatureHelp(lsp_types.TextDocumentIdentifier(self.test_file_uri),
-        pass
-
-    def test_completion(self):
-        # Exemplary code completion test:
-        # self.solc.client.completion(
-        #     lsp_types.TextDocumentIdentifier(self.test_file_uri),
-        #     lsp_types.Position(14, 4),
-        #     lsp_types.CompletionContext(lsp_types.CompletionTriggerKind.Invoked)
-        # )
+        # Shows type/natspec information
         pass
     # }}}
 
 class SolidityLSPTestSuite:
-    def main(self):
-        self.parse_args_and_prepare()
+    def __init__(self):
+        self.project_root_dir = ''
+        self.solc_path = ''
 
-        with SolcInstance(self.solc_path) as solc:
-            project_root_uri = 'file://' + self.project_root_dir
+    def main(self):
+        solc_path, project_root_dir = self.parse_args_and_prepare()
+
+        with SolcInstance(solc_path) as solc:
+            project_root_uri = 'file://' + project_root_dir
             workspace_folders = [ {'name': 'solidity-lsp', 'uri': project_root_uri} ]
             traceServer = 'off'
             solc.client.initialize(solc.process.pid, None, project_root_uri,
                                    None, LSP_CLIENT_CAPS, traceServer,
                                    workspace_folders)
             solc.client.initialized()
-            # Maybe we want to check the init response? Expect certain features to be announced?
-
-            tests = SolcTests(solc, self.project_root_dir)
+            tests = SolcTests(solc, project_root_dir)
             tests.run()
 
     def parse_args_and_prepare(self):
+        """
+        Parses CLI args and retruns tuple of path to solc executable
+        and path to solidity-project root dir.
+        """
         parser = argparse.ArgumentParser(description='Solidity LSP Test suite')
         parser.add_argument(
             'solc_path',
@@ -351,9 +347,8 @@ class SolidityLSPTestSuite:
             nargs="?"
         )
         args = parser.parse_args()
-
-        self.solc_path = args.solc_path
-        self.project_root_dir = os.path.realpath(args.project_root_dir) + '/test/libsolidity/lsp'
+        project_root_dir = os.path.realpath(args.project_root_dir) + '/test/libsolidity/lsp'
+        return [args.solc_path, project_root_dir]
 
 if __name__ == "__main__":
     suite = SolidityLSPTestSuite()
