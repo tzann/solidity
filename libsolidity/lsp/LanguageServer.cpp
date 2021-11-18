@@ -60,7 +60,7 @@ struct MarkdownBuilder
 
 	MarkdownBuilder& code(std::string const& _code)
 	{
-		// TODO: Use solidity as langauge Id as soon as possible.
+		// TODO: Use solidity as language Id as soon as possible.
 		auto constexpr SolidityLanguageId = "javascript";
 		result << "```" << SolidityLanguageId << '\n' << _code << "\n```\n\n";
 		return *this;

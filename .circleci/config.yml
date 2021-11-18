@@ -1206,6 +1206,7 @@ workflows:
       - t_ubu_soltest_enforce_yul: *workflow_ubuntu2004
       - b_ubu_clang: *workflow_trigger_on_tags
       - t_ubu_clang_soltest: *workflow_ubuntu2004_clang
+      - t_ubu_lsp: *workflow_ubuntu2004
 
       # Ubuntu fake release build and tests
       - b_ubu_release: *workflow_trigger_on_tags
