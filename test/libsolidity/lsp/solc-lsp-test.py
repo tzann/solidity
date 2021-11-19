@@ -2,7 +2,8 @@
 
 # DEPENDENCIES:
 #     pip install git+https://github.com/christianparpart/pylspclient.git --user
-# And for local development of pylspclient, use the editable mode of pip install.
+# WHEN DEVELOPING (editable module):
+#     pip install -e /path/to/checkout/pylspclient
 
 import argparse
 import os
