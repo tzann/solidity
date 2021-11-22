@@ -283,12 +283,13 @@ class SolcTests:
         # Test on return parameter symbol: `result` at 35:9 (begin of identifier)
         result = self.solc.client.definition(
                 lsp_types.TextDocumentIdentifier(self.get_test_file_uri(TEST_NAME)),
-                lsp_types.Position(34, 9))
+                lsp_types.Position(24, 8))
         dinspect("result", result)
 
+        # Test goto-def of a function-parameter.
         result = self.solc.client.definition(
                 lsp_types.TextDocumentIdentifier(self.get_test_file_uri(TEST_NAME)),
-                lsp_types.Position(34, 27))
+                lsp_types.Position(24, 17))
         dinspect("local var", result)
 
         # Test on function parameter symbol
