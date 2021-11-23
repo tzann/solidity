@@ -40,7 +40,7 @@ class EqualStoreEliminator: public DataFlowAnalyzer
 {
 public:
 	static constexpr char const* name{"EqualStoreEliminator"};
-	static void run(OptimiserStepContext&, Block& _ast);
+	static void run(OptimiserStepContext const&, Block& _ast);
 
 private:
 	EqualStoreEliminator(
@@ -53,19 +53,6 @@ private:
 protected:
 	using ASTModifier::visit;
 	void visit(Statement& _statement) override;
-
-	void tryResolve(
-		Expression& _e,
-		StoreLoadLocation _location,
-		std::vector<Expression> const& _arguments
-	);
-
-	/// Evaluates simple ``keccak256(a, c)`` when the value at memory location ``a`` is known and
-	/// `c` is a constant `<= 32`.
-	void tryEvaluateKeccak(
-		Expression& _e,
-		std::vector<Expression> const& _arguments
-	);
 
 	std::set<Statement const*> m_pendingRemovals;
 };

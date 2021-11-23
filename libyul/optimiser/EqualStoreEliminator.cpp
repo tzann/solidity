@@ -41,7 +41,7 @@ using namespace solidity::util;
 using namespace solidity::evmasm;
 using namespace solidity::yul;
 
-void EqualStoreEliminator::run(OptimiserStepContext& _context, Block& _ast)
+void EqualStoreEliminator::run(OptimiserStepContext const& _context, Block& _ast)
 {
 	EqualStoreEliminator eliminator{
 		_context.dialect,
